@@ -1,0 +1,39 @@
+const express = require('express');
+const app = express();
+app.use(express.json());
+const VERIFY_TOKEN = "moonbuilds123";
+const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
+const PHONE_ID = process.env.PHONE_ID;
+app.get('/webhook', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+    return res.status(200).send(challenge);
+  }
+  return res.sendStatus(403);
+});
+app.post('/webhook', async (req, res) => {
+  try {
+    const entry = req.body.entry?.[0];
+    const change = entry?.changes?.[0];
+    const msg = change?.value?.messages?.[0];
+    if (msg) {
+      const from = msg.from;
+      const text = (msg.text?.body || "").toLowerCase();
+      let reply = "Hi! Welcome to Moonbuilds001. We build websites. Reply: 1 for Price, 2 for Samples, 3 to Talk to Benji";
+      if (text.includes("1") || text.includes("price")) reply = "Our websites start from KSh 15,000. Basic: 15k, Business: 30k, E-commerce: 60k. Reply 3 to talk to Benji.";
+      if (text.includes("2") || text.includes("sample")) reply = "We build business, portfolio & shop websites. Reply 3 and Benji will send you samples.";
+      if (text.includes("3") || text.includes("benji")) reply = "Great! Benji will reply you shortly. Tell us your business name and what website you want.";
+      await fetch(`https://graph.facebook.com/v21.0/${PHONE_ID}/messages`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messaging_product: 'whatsapp', to: from, text: { body: reply } })
+      });
+    }
+    res.sendStatus(200);
+  } catch(e){ console.log(e); res.sendStatus(200); }
+});
+app.get('/', (req,res)=>res.send('Moonbuilds001 bot is live'));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, ()=>console.log('Running on '+PORT));
